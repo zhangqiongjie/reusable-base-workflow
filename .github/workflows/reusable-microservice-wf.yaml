@@ -1,0 +1,175 @@
+name: Reusable Microservice Test/Build/Deploy Workflow
+
+on:
+  workflow_call:
+    inputs:
+      ecr-registry:
+        description: 'ECR registry URL'
+        required: true
+        type: string
+      subdir:
+        description: 'Subdirectory containing the microservice'
+        required: true
+        type: string
+    secrets:
+      twistlock-secret-key:
+        description: 'Twistlock secret key'
+        required: true
+      snyk-token:
+        description: Snyk token used for uploading Docker image scan results to Snyk.
+        required: false
+      # TODO: Add more secrets as needed
+
+
+defaults:
+  run:
+    shell: bash
+
+env: {}
+
+permissions:
+  id-token: write
+  contents: write
+  issues: write
+  actions: write
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare environment
+        run: echo "Preparing environment..."
+      - name: Get Reusable Workflow params via OIDC ID token because they're not otherwise exposed
+        id: id-token
+        uses: ChristopherHX/oidc@v3
+      - name: Checkout repository to be able to invoke actions & scripts
+        uses: actions/checkout@v6
+        with:  # Required for checkout action to work around when workflow called from other repo.
+            repository: ${{ steps.id-token.outputs.job_workflow_repo_name_and_owner }}
+            ref: ${{ steps.id-token.outputs.job_workflow_sha }}
+            token: ${{ secrets.base-workflows-gh-token || github.token }}
+      - name: Checkout caller repository ${{ github.repository }}
+        uses: actions/checkout@v6
+        with:
+            path: caller-repo
+      - name: Compute and expose values
+        id: values
+        working-directory: caller-repo/${{ inputs.subdir }}/helm
+        run: |
+            full_repo_name="${{ github.repository }}"
+            repo_name="$(cut -d/ -f2 <<< "$full_repo_name")"
+            chart_name="$(echo "$chart_url" | rev | cut -d/ -f1 | rev)"
+            chart_version=$(yq -r .version Chart.yaml)
+            app_version=$(yq -r .appVersion Chart.yaml)
+            image_name="${{ inputs.ecr-registry }}/${repo_name}"
+            image_tag=$app_version
+
+            # Expose as github outputs:
+            tee -a "$GITHUB_OUTPUT" <<EOF
+            repo-name=$repo_name
+            chart-name=$chart_name
+            chart-version=$chart_version
+            app-version=$app_version
+            image-name=$image_name
+            image-tag=$app_version
+            image=$image_name:$image_tag
+            EOF
+      - name: Print to summary
+        run: |
+            tee -a "$GITHUB_STEP_SUMMARY" <<'EOF'
+            - Repo name: `${{ steps.values.outputs.repo-name }}`
+            - Subdir: ${{ inputs.subdir && format('`{0}`', inputs.subdir) || 'N/A' }}
+            - Chart name: `${{ steps.values.outputs.chart-name }}`
+            - Chart version: `${{ steps.values.outputs.chart-version }}`
+            - App version: `${{ steps.values.outputs.app-version }}`
+            - Chart URL: `${{ steps.values.outputs.chart-url }}`
+            EOF
+            if [ "${{ inputs.docker-skip-build }}" = "false" ]; then
+            echo '- Docker image: `${{ steps.values.outputs.image }}`' | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+      - name: Check if version is bumped
+        if: inputs.fail-if-pr-not-version-bumped == true && github.event_name == 'pull_request'
+        working-directory: caller-repo/${{ inputs.subdir }}/helm
+        run: |
+            if ! ${{ github.workspace }}/.github/scripts/check-chart-version.sh \
+            . ${{ github.head_ref }} ${{ github.base_ref }}
+            then
+            echo "❌ ERROR: Chart version is not bumped." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+            fi
+    outputs:
+      repo-name: ${{ steps.values.outputs.repo-name }}
+      chart-name: ${{ steps.values.outputs.chart-name }}
+      chart-version: ${{ steps.values.outputs.chart-version }}
+      app-version: ${{ steps.values.outputs.app-version }}
+      image-name: ${{ steps.values.outputs.image-name }}
+      image-tag: ${{ steps.values.outputs.image-tag }}
+      image: ${{ steps.values.outputs.image }}
+      
+
+  lint:
+    runs-on: ubuntu-latest
+    needs: [prepare]
+    steps:
+      - name: Run Go Lint
+        run: echo "Linting..."
+
+  e2e-test:
+    runs-on: ubuntu-latest
+    needs: [prepare]
+    steps:
+      - name: Run E2E Tests
+        run: echo "Running E2E Tests..."
+
+  code-coverage:
+    runs-on: ubuntu-latest
+    needs: [prepare]
+    steps:
+      - name: Run Code Coverage Checks
+        run: echo "Running Code Coverage Checks..."
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [prepare]
+    steps:
+      - name: Build and push Docker image
+        run: echo "Building and pushing Docker image..."
+      - name: Build docker image
+        working-directory: caller-repo/${{ inputs.subdir }}
+        run: |
+            docker build -t ${{ needs.prepare.outputs.image }} .
+      - name: Push docker image
+        run: echo "Pushing docker image..."
+
+  twistlock-scan:
+    runs-on: ubuntu-latest
+    needs: [prepare]
+    steps:
+      - name: Run Twistlock Scan
+        run: echo "Running Twistlock Scan..."
+
+  snyk-scan:
+    runs-on: ubuntu-latest
+    needs: [prepare]
+    steps:
+      - name: Run Snyk Scan
+        run: echo "Running Snyk Scan..."
+
+  build-helm-chart:
+    runs-on: ubuntu-latest
+    needs: [prepare]
+    steps:
+      - name: Build Helm chart
+        run: echo "Building Helm chart..."
+      - name: Helm Login
+        run: echo "Helm Login..."
+      - name: Helm Package
+        run: echo "Helm Package..."
+      - name: Helm Push
+        run: echo "Helm Push..."
+
+
