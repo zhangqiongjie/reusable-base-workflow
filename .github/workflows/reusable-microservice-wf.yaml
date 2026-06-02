@@ -7,10 +7,46 @@ on:
         description: 'ECR registry URL'
         required: true
         type: string
+        default: '123456789012.dkr.ecr.us-east-1.amazonaws.com'
       subdir:
         description: 'Subdirectory containing the microservice'
         required: true
         type: string
+        default: '.'
+      language:
+        description: 'Programming language of the microservice'
+        required: true
+        type: string
+        default: 'golang'
+      run-snyk-scan:
+        description: 'Run Snyk scan'
+        required: false
+        type: boolean
+        default: false
+      dockerhub-username:
+        description: 'Docker Hub username'
+        required: true
+        type: string
+      run-e2e-tests:
+        description: 'Run E2E tests'
+        required: false
+        type: boolean
+        default: false
+      run-codecoverage:
+        description: 'Run code coverage'
+        required: false
+        type: boolean
+        default: false
+      run-componment-test:
+        description: 'Run component tests'
+        required: false
+        type: boolean
+        default: false
+      component-test-cmd:
+        description: Command used for executing component test
+        type: string
+        default: ''
+        required: false
     secrets:
       twistlock-secret-key:
         description: 'Twistlock secret key'
@@ -18,6 +54,9 @@ on:
       snyk-token:
         description: Snyk token used for uploading Docker image scan results to Snyk.
         required: false
+      dockerhub-password:
+        description: Docker Hub password
+        required: true
       # TODO: Add more secrets as needed
 
 
