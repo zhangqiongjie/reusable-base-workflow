@@ -18,6 +18,11 @@ on:
         required: true
         type: string
         default: 'golang'
+      go-version:
+        description: 'Go version'
+        required: false
+        type: string
+        default: '1.21'
       run-snyk-scan:
         description: 'Run Snyk scan'
         required: false
@@ -38,6 +43,9 @@ on:
         type: boolean
         default: false
     secrets:
+      base-workflows-gh-token:
+        description: 'GitHub token for accessing base workflows'
+        required: false
       twistlock-secret-key:
         description: 'Twistlock secret key'
         required: true
@@ -167,10 +175,26 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prepare]
     steps:
-      - name: Build and push Docker image
-        run: echo "Building and pushing Docker image..."
+      - name: Get Reusable Workflow params via OIDC ID token because they're not otherwise exposed
+        id: id-token
+        uses: ChristopherHX/oidc@v3
+      - name: Checkout repository to be able to invoke actions & scripts
+        uses: actions/checkout@v6
+        with:  # Required for checkout action to work around when workflow called from other repo.
+          repository: ${{ steps.id-token.outputs.job_workflow_repo_name_and_owner }}
+          ref: ${{ steps.id-token.outputs.job_workflow_sha }}
+          token: ${{ secrets.base-workflows-gh-token || github.token }}
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: false
+      - name: Checkout caller repository ${{ github.repository }}
+        uses: actions/checkout@v6
+        with:
+          path: caller-repo
       - name: Build docker image
-        working-directory: ${{ inputs.subdir }}
+        working-directory: caller-repo/${{ inputs.subdir }}
         run: |
             docker build -t ${{ needs.prepare.outputs.image }} .
       - name: Push docker image
