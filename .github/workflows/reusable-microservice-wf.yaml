@@ -125,6 +125,7 @@ jobs:
             image-name=$image_name
             image-tag=$app_version
             image=$image_name:$image_tag
+            chart-url=$chart_url
             EOF
       - name: Print to summary
         run: |
@@ -286,7 +287,7 @@ jobs:
           helm upgrade --install ${{ needs.prepare.outputs.chart-name }} ${{ needs.prepare.outputs.chart-name }} \
           -n ${{ inputs.namespace }} \
           --dry-run \
-          --wait --timeout 3600
+          --wait --timeout 3600s
           echo -e "\n✅ **Successfully deployed helm chart!** :tada:" | tee -a "$GITHUB_STEP_SUMMARY"
 
 
