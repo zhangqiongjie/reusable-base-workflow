@@ -7,7 +7,7 @@ on:
         description: 'ECR registry URL'
         required: false
         type: string
-        default: '123456789012.dkr.ecr.us-east-1.amazonaws.com'
+        default: 'kubeclever'
       subdir:
         description: 'Subdirectory containing the microservice'
         required: false
@@ -170,7 +170,7 @@ jobs:
       - name: Build and push Docker image
         run: echo "Building and pushing Docker image..."
       - name: Build docker image
-        working-directory: caller-repo/${{ inputs.subdir }}
+        working-directory: ${{ inputs.subdir }}
         run: |
             docker build -t ${{ needs.prepare.outputs.image }} .
       - name: Push docker image
