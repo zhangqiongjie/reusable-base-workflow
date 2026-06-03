@@ -32,7 +32,7 @@ on:
         required: false
         type: boolean
         default: false
-      run-codecoverage:
+      run-code-coverage:
         description: 'Run code coverage'
         required: false
         type: boolean
@@ -150,6 +150,7 @@ jobs:
   e2e-test:
     runs-on: ubuntu-latest
     needs: [prepare]
+    if: inputs.run-e2e-test == true
     steps:
       - name: Run E2E Tests
         run: echo "Running E2E Tests..."
@@ -157,6 +158,7 @@ jobs:
   code-coverage:
     runs-on: ubuntu-latest
     needs: [prepare]
+    if: inputs.run-code-coverage == true
     steps:
       - name: Run Code Coverage Checks
         run: echo "Running Code Coverage Checks..."
@@ -176,21 +178,21 @@ jobs:
 
   twistlock-scan:
     runs-on: ubuntu-latest
-    needs: [prepare]
+    needs: [prepare, build]
     steps:
       - name: Run Twistlock Scan
         run: echo "Running Twistlock Scan..."
 
   snyk-scan:
     runs-on: ubuntu-latest
-    needs: [prepare]
+    needs: [prepare, build]
     steps:
       - name: Run Snyk Scan
         run: echo "Running Snyk Scan..."
 
   build-helm-chart:
     runs-on: ubuntu-latest
-    needs: [prepare]
+    needs: [prepare, build]
     steps:
       - name: Build Helm chart
         run: echo "Building Helm chart..."
