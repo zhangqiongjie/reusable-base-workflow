@@ -5,7 +5,7 @@ on:
     inputs:
       ecr-registry:
         description: 'ECR registry URL'
-        required: true
+        required: false
         type: string
         default: '123456789012.dkr.ecr.us-east-1.amazonaws.com'
       subdir:
@@ -27,7 +27,7 @@ on:
         description: 'Docker Hub username'
         required: true
         type: string
-      run-e2e-tests:
+      run-e2e-test:
         description: 'Run E2E tests'
         required: false
         type: boolean
