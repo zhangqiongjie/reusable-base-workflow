@@ -10,7 +10,7 @@ on:
         default: '123456789012.dkr.ecr.us-east-1.amazonaws.com'
       subdir:
         description: 'Subdirectory containing the microservice'
-        required: true
+        required: false
         type: string
         default: '.'
       language:
@@ -37,16 +37,6 @@ on:
         required: false
         type: boolean
         default: false
-      run-componment-test:
-        description: 'Run component tests'
-        required: false
-        type: boolean
-        default: false
-      component-test-cmd:
-        description: Command used for executing component test
-        type: string
-        default: ''
-        required: false
     secrets:
       twistlock-secret-key:
         description: 'Twistlock secret key'
