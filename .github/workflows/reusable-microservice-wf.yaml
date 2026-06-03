@@ -229,12 +229,19 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prepare, build]
     steps:
-      - name: Build Helm chart
-        run: echo "Building Helm chart..."
-      - name: Helm Login
-        run: echo "Helm Login..."
-      - name: Helm Package
-        run: echo "Helm Package..."
+      - name: Get Reusable Workflow params via OIDC ID token because they're not otherwise exposed
+        id: id-token
+        uses: ChristopherHX/oidc@v3
+      - name: Checkout repository to be able to invoke actions & scripts
+        uses: actions/checkout@v6
+        with:  # Required for checkout action to work around when workflow called from other repo.
+            repository: ${{ steps.id-token.outputs.job_workflow_repo_name_and_owner }}
+            ref: ${{ steps.id-token.outputs.job_workflow_sha }}
+            token: ${{ secrets.base-workflows-gh-token || github.token }}
+      - name: Checkout caller repository ${{ github.repository }}
+        uses: actions/checkout@v6
+        with:
+            path: caller-repo
       - name: Helm Package
         id: package
         working-directory: caller-repo/${{ inputs.subdir }}
@@ -251,6 +258,8 @@ jobs:
             echo "filename=$PACKAGE_FILENAME" >> "$GITHUB_OUTPUT"
             echo "artifact=${{ needs.prepare.outputs.chart-name }}-${{ needs.prepare.outputs.chart-version }}" >> "$GITHUB_OUTPUT"
             echo ":tada: **Packaged successfully!** :tada:" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Helm Login
+        run: echo "Helm Login..."
       - name: Helm Push
         run: echo "Helm Push..."
 
@@ -258,11 +267,25 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prepare, build-helm-chart]
     steps:
+      - name: Get Reusable Workflow params via OIDC ID token because they're not otherwise exposed
+        id: id-token
+        uses: ChristopherHX/oidc@v3
+      - name: Checkout repository to be able to invoke actions & scripts
+        uses: actions/checkout@v6
+        with:  # Required for checkout action to work around when workflow called from other repo.
+            repository: ${{ steps.id-token.outputs.job_workflow_repo_name_and_owner }}
+            ref: ${{ steps.id-token.outputs.job_workflow_sha }}
+            token: ${{ secrets.base-workflows-gh-token || github.token }}
+      - name: Checkout caller repository ${{ github.repository }}
+        uses: actions/checkout@v6
+        with:
+            path: caller-repo
       - name: Deploy to Kubernetes
         run: |
           echo "Deploying to Kubernetes..."
           helm upgrade --install ${{ needs.prepare.outputs.chart-name }} ${{ needs.prepare.outputs.chart-name }} \
           -n ${{ inputs.namespace }} \
+          --dry-run \
           --wait --timeout 3600
           echo -e "\n✅ **Successfully deployed helm chart!** :tada:" | tee -a "$GITHUB_STEP_SUMMARY"
 
